@@ -1,0 +1,5 @@
+FROM mamba:1.5.8
+
+RUN _pip install combine-csv==3.0.0
+#tag 3.0.0
+#registry gmtscience

@@ -1,0 +1,5 @@
+FROM gmtscience/mamba:1.5.8
+
+RUN _apt install lsb-release build-essential curl openssh-client git autoconf libtool cmake
+#registry gmtscience
+#tag 1.5.8

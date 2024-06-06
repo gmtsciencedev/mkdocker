@@ -1,0 +1,5 @@
+FROM mamba:1.5.8
+
+RUN _conda install fastp=0.23.4
+#tag 0.23.4
+#registry gmtscience

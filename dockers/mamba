@@ -1,0 +1,20 @@
+FROM mambaorg/micromamba:1.5.8-bookworm-slim
+USER root
+ENV MAMBA_ALWAYS_YES=true
+RUN echo -e 'Dir::Cache "";nDir::Cache::archives "";' > /etc/apt/apt.conf.d/00_disable-cache-directories && \
+    apt update && apt install -y curl bzip2 gzip pigz procps parallel && apt clean && rm -rf /var/lib/apt/lists/*
+RUN echo root > "/etc/arg_mamba_user"
+ENV MAMBA_USER=root
+ARG MAMBA_DOCKERFILE_ACTIVATE=1
+RUN micromamba install -c conda-forge -c bioconda python=3.9 && \
+    micromamba clean --all --yes
+RUN echo -e '#!/bin/bash\nsource /usr/local/bin/_activate_current_env.sh\ncommand=$1\nargs="${@:2}"\ncase $command in\ninstall) micromamba install -c conda-forge -c bioconda $args && micromamba clean --all --yes ;;\n*) echo Unsupported command $command;;\nesac' > /usr/local/bin/_conda \
+    && chmod a+x /usr/local/bin/_conda
+RUN echo -e '#!/bin/bash\nsource /usr/local/bin/_activate_current_env.sh\ncommand=$1\nargs="${@:2}"\ncase $command in\ninstall) pip install --no-cache-dir $args ;;\n*) echo Unsupported command $command;;\nesac' > /usr/local/bin/_pip \
+    && chmod a+x /usr/local/bin/_pip
+RUN echo -e '#!/bin/bash\ncommand=$1\nargs="${@:2}"\ncase $command in\ninstall) apt update && apt install -y $args && apt clean && rm -rf /var/lib/apt/lists/* ;;\n*) echo Unsupported command $command;;\nesac' > /usr/local/bin/_apt \
+    && chmod a+x /usr/local/bin/_apt
+RUN echo -e '#!/bin/bash\ncommand=$1\nargs="${@:2}"\ncase $command in\nclone) GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone --single-branch --depth 1 $args ;;\n*) echo Unsupported command $command;;\nesac' > /usr/local/bin/_git \
+    && chmod a+x /usr/local/bin/_git
+#tag 1.5.8
+#registry gmtscience

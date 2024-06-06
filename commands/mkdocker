@@ -1,0 +1,87 @@
+#!/bin/sh
+set -e
+
+usage() {
+    echo "Usage: $0 [-n] DOCKERFILE
+
+mkdocker is a small utility to help building dockers.
+
+Options:
+ -n     No push, by default image are pushed to the registry (if REGISTRY shell variable is set)
+"
+}
+
+PUSH="YES"
+while getopts "n" options; do
+    case "${options}" in 
+        n)
+            PUSH=""
+            ;;
+        *)                                    
+            usage
+            exit 1                 
+            ;;
+    esac
+done
+
+
+shift $(($OPTIND - 1))
+DOCKERFILE=$1
+
+check_hash() { grep -q -e "^#$1" $DOCKERFILE && echo YES;  }
+check_hash_command() { grep -i -e "^#$1" $DOCKERFILE|cut -d " " -f2; }
+
+TAG=$(check_hash_command tag)
+HASHREGISTRY=$(check_hash_command registry)
+REGISTRY=${HASHREGISTRY:-$REGISTRY}
+
+SSH_REUSE=1
+if [ $(check_hash usessh) ]
+then
+    if [ ! $SSH_AUTH_SOCK ]
+    then
+        SSH_REUSE=""
+        eval $(ssh-agent)
+        ssh-add
+    fi
+    SSH_OPTION='--ssh default'
+else
+    SSH_OPTION=''
+fi
+
+if [ $(check_hash nopush) ]
+then
+    PUSH=""
+fi
+
+if [ $TAG ]
+then
+    echo DOCKER_BUILDKIT=1 docker build $SSH_OPTION -t $DOCKERFILE:latest -t $DOCKERFILE:$TAG -f $DOCKERFILE .
+    DOCKER_BUILDKIT=1 docker build $SSH_OPTION -t $DOCKERFILE:latest -t $DOCKERFILE:$TAG -f $DOCKERFILE .
+else
+    DOCKER_BUILDKIT=1 docker build $SSH_OPTION -t $DOCKERFILE -f $DOCKERFILE .
+fi
+
+if [ $PUSH ]
+then
+    if [ $REGISTRY ]
+    then
+        if [ $TAG ]
+        then
+            docker tag $DOCKERFILE:$TAG $REGISTRY/$DOCKERFILE:$TAG
+            docker tag $DOCKERFILE:latest $REGISTRY/$DOCKERFILE:latest
+            docker push $REGISTRY/$DOCKERFILE:$TAG
+            docker push $REGISTRY/$DOCKERFILE:latest
+        else
+            docker tag $DOCKERFILE $REGISTRY/$DOCKERFILE
+            docker push $REGISTRY/$DOCKERFILE
+        fi
+    else
+        echo 'Warning shell variable REGISTRY is not set, and #registry is not used, so I cannot push'
+    fi
+fi
+
+if [ ! $SSH_REUSE ]
+then
+    ssh-agent -k
+fi

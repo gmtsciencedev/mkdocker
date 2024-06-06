@@ -1,0 +1,8 @@
+FROM gmtscience/basebuilder:1.5.8
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup.sh && sh rustup.sh -y --default-toolchain 1.75.0  
+
+RUN echo -e '#!/bin/bash\nsource $HOME/.cargo/env\ncommand=$1\nargs="${@:2}"\ncase $command in\nbuild) RUSTFLAGS="-C target-cpu=x86-64" cargo build --release $args ;;\n*) echo Unsupported command $command;;\nesac' > /usr/local/bin/_cargo \
+    && chmod a+x /usr/local/bin/_cargo
+#registry gmtscience
+#tag 1.75.0
