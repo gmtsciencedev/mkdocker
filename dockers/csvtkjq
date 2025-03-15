@@ -1,0 +1,3 @@
+FROM mamba
+
+RUN _conda install csvtk jq

@@ -1,0 +1,4 @@
+FROM gmtscience/mamba
+
+RUN snakemake=8
+#registry gmtscience

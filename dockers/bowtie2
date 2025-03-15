@@ -1,0 +1,5 @@
+FROM mamba:1.5.8
+
+RUN _conda install bowtie2=2.5.4 samtools=1.21
+#tag 2.5.4
+#registry gmtscience

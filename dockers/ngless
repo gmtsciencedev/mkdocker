@@ -1,0 +1,8 @@
+FROM mamba:1.5.8
+
+RUN _conda install ngless=1.5.0
+
+RUN mkdir -p /root/.local/share && \
+    ln -s /resource/ngless /root/.local/share/ngless
+#registry gmtscience
+#tag 1.5.0

@@ -1,0 +1,14 @@
+FROM mamba:1.5.8
+RUN _conda install metaphlan=4.1.1 humann=3.9 seqtk=1.4
+RUN _pip install --force numpy
+RUN _pip install --force scipy
+
+RUN bash -c 'for f in /opt/conda/bin/humann*; do sed -i "1 s/python/python3.12/" $f; done'
+#RUN /opt/conda/bin/humann_config --update database_folders nucleotide /resource/humann/chocophlan
+#RUN /opt/conda/bin/humann_config --update database_folders protein /resource/humann/uniref
+#RUN /opt/conda/bin/humann_config --update database_folders utility_mapping /resource/humann/utility_mapping
+
+#RUN echo -e '#!/bin/sh\n\nmkdir -p /resource/humann\n\nhumann_databases --download chocophlan full /resource/humann --update-config yes\nhumann_databases --download uniref uniref90_diamond /resource/humann --update-config yes\nhumann_databases --download utility_mapping full /resource/humann --update-config yes\n\nmkdir -p /resource/metaphlan/bowtie2\n\nmetaphlan --install --bowtie2db /resource/metaphlan/bowtie2' > /usr/local/bin/install_database.sh \
+#    && chmod a+x /usr/local/bin/install_database.sh
+#tag 4.1.1
+#registry gmtscience
