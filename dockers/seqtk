@@ -1,0 +1,6 @@
+FROM mamba:1.5.8
+
+RUN _conda install seqtk=1.4
+
+#registry gmtscience
+#tag 1.4

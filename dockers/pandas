@@ -1,0 +1,5 @@
+FROM mamba:1.5.8
+
+RUN _pip install pandas==2.3.3
+#registry gmtscience
+#tag 2.3.3

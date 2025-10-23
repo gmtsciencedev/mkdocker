@@ -1,0 +1,5 @@
+FROM mamba:1.5.8
+
+RUN _conda install seqstats=1.0.0
+#tag 1.0.0
+#registry gmtscience

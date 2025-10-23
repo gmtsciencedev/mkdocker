@@ -1,0 +1,8 @@
+FROM gmtscience/rustbuilder:1.84
+RUN _git clone -b 'v0.6.1' https://github.com/predomics/gpredomics.git /gpredomics/
+RUN cd /gpredomics && _cargo build
+
+FROM mamba:1.5.8
+COPY --from=0 /gpredomics/target/release/gpredomics /usr/local/bin/gpredomics
+#registry gmtscience
+#tag 0.6.1
