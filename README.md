@@ -1,62 +1,72 @@
 # mkdocker
 
-mkdocker is a rustic hack designed to make docker creation as simple as possible. It tries to lower the number of lines in a Dockerfile to a minimum so as to reduce the number of errors.
+mkdocker is a lightweight system designed to make Docker image creation as simple and error‑free as possible. Its goal is to minimize the number of lines in a Dockerfile and reduce the likelihood of mistakes.
+
+It consists of:
+- a Bash script, `mkdocker`, used instead of `docker build ...`,
+- a base image, `gmtscience/mamba`, which combines a micromamba image with helper scripts,
+- and a set of Dockerfiles containing a few meta‑commands (see below) that simplify image creation.
 
 ## usage
 
-clone the repo, install `mkdocker` in your path, optionnally set the `REGISTRY` shell variable either to the name of your Docker hub namespace (for us, that is `gmtscience`, or to a complete private registry, the docker image will pushed to `$REGISTRY/<name of the docker file>`). Create a folder where to put all your dockerfiles: `/my/dockers/`.
+Clone the repository, install `mkdocker` in your PATH, and optionally set the `REGISTRY` environment variable to either your Docker Hub namespace (for us, `gmtscience`) or a full private registry. The built image will be pushed to `$REGISTRY/<dockerfile name>`.
 
-Usage is then:
+Create a folder for your Dockerfiles, e.g. `/my/dockers/`.
+
+Usage:
 ```sh
 cd /my/dockers
-# now edit a dockerfile as usual, see below the examples
+# edit a dockerfile as usual (see examples below)
 vi somedocker
 mkdocker somedocker
 ```
 
 ## features
 
-- by default the Dockerfiles are no longer called `Dockerfile` but bear the name of the image they code for.
-- building up on micromamba: mamba/micromamba is a killer environment that we are really glad to use. It makes Anaconda install so quick and lean. However it relies on a specific user and not root which makes difficult the installation of distribution packages for instance. Thus mkdocker relies on a base image, `mamba` which solve this particular issue.
-- the base image also provides some simple commands that begin with an underscore to replace base commands while adding specific optimization for docker (to reduce image size notably or activate environment):
-  - `_conda` replace `conda` (only install subcommand supported), it adds micromamba environment activation and does conda cleaning after install,
-  - `_pip` replace `pip` (only install subcommand supported), it uses python from conda environment (thus activate micromamba environment) and limits impact on image size with well known docker tricks,
-  - `_apt` replace `apt` (only install subcommand supported), it adds the `-y` option and limits impact on image size with well known docker tricks,
-  - `_git` replace `git` (only clone subcommand supported) (see `#usessh` below), it adds some options to suppress SSH checking which make no sense in a docker building context, it adds several options like `--single-branch --depth 1` which makes git a lot quicker and limit the size of downloaded source.
+- Dockerfiles are not named `Dockerfile` anymore; instead, they take the name of the image they define.
+- The system builds on micromamba: micromamba is extremely efficient for Conda‑based environments, but it relies on a dedicated (non‑root) user, which complicates installing system packages. The base `mamba` image solves this issue.
+- The base image also provides simple helper commands beginning with `_`, which wrap the underlying tools with Docker‑friendly optimizations (e.g., reduced image size, automatic micromamba activation):
+  - `_conda` replaces `conda` (install only): activates the micromamba environment and cleans up afterward,
+  - `_pip` replaces `pip` (install only): uses the Conda Python environment and applies Docker optimization tricks,
+  - `_apt` replaces `apt` (install only): automatically adds `-y` and applies cleanup steps,
+  - `_git` replaces `git` (clone only): adds sensible defaults for Docker builds (`--single-branch --depth 1`), disables unnecessary SSH checks, and accelerates cloning.
 
-Another base image is also provided, the `rustbuilder` image, which provides a suitable environment for rust building (and is meant to be use in multi-stage build, see below). This particular image (built upon the base image) provides the `_cargo` command (only build subcommand supported) which activate the cargo environment and use some safe building defaults.
+Another base image is provided: `rustbuilder`, intended for multi‑stage builds. It includes the `_cargo` command (build only), which activates the Rust environment and uses safe build defaults.
 
 ## extra Dockerfile commands
 
-`mkdocker` looks for specific comment to add those some tricks to Dockerfile so as to make extrabuilding scripts unnecessary:
+`mkdocker` scans the Dockerfile for specific hash‑prefixed meta‑commands and applies corresponding build‑time behaviors:
 
-- `#tag <tag>` add the <tag> building tag when building (latest is always automatically added),
-- `#nopush` change the default option which is to push to remote registry to no push,
-- `#registry <registry>` set the remote registry to a custom option (the default registry is set via shell variable $REGISTRY) (if neither is set a warning will occur, set `#nopush` to remove the warning, meaning it is intendended as an image not to be pushed)
-- `#usessh` is a hack for private repository, see below.
+- `#tag <tag>` adds the specified `<tag>` to the built image (in addition to `latest`, which is always included),
+- `#nopush` disables pushing the image to a registry (pushing is enabled by default),
+- `#registry <registry>` overrides the default registry (which otherwise comes from `$REGISTRY`).  
+  If neither a registry nor `#nopush` is set, a warning is shown.
+- `#usessh` enables SSH agent forwarding for private repository cloning (see below).
 
-NB the line must start with the command otherwise it won't trigger
+Each meta‑command must appear at the beginning of the line to be recognized.
 
-Other than that, the file is just a plain Dockerfile, so all other docker specifics can be used.
+Aside from these commands, the Dockerfile is completely standard.
 
 ## #usessh and git clone
 
-The `#usessh` commands ensure that your SSH agent is up so as to transfer your SSH settings and access to the docker `_git` (see above) command. You must also start your RUN command with the `--mount=type=ssh`, see the example below so that it works. It also shut down the agent once the docker image is built.
+The `#usessh` directive ensures that your SSH agent is available during the build so that `_git` can clone private repositories.  
+Your `RUN` command must include `--mount=type=ssh`. For example:
 
-So basically you should have the two line in your Dockerfile:
 ```docker
 #usessh
 RUN --mount=type=ssh _git clone -b mytag ssh://git@my.private.repo/mycode
 ```
 
-This will enable to use your user SSH enabled authentication to be used within docker, during the docker build phase only, i.e. when you run the `mkdocker` command. This removes the need for adding an SSH key in the build image or ask for a password during build.
+This allows the Docker build (triggered via `mkdocker`) to reuse your local SSH credentials without storing SSH keys inside the image or prompting for a password.
 
-NB the `#usessh` or any other mkdocker hash instruction may be anywhere in the script, they are evaluated before the docker build so it does not matter as long as the line starts with the has instruction.
+The SSH agent is automatically shut down once the build finishes.
+
+`#usessh` and all other meta‑commands can appear anywhere in the Dockerfile (as long as they start the line), since they are parsed before the build begins.
 
 ## multi-stage build
 
-Multi-stage build is advised in docker whenever a compilation step is involved, so usually it should be combined with a _git command 
-Here is a fake example derived from a real docker from our own collection:
+Multi‑stage builds are strongly recommended when compilation is involved. They pair well with `_git` and `_cargo`.  
+Example:
 
 ```docker
 FROM gmtscience/rustbuilder
@@ -69,15 +79,15 @@ COPY --from=0 /metagen/counter/target/release/pipeline-counter /usr/local/bin/pi
 #tag 1.0
 ```
 
-If you do not know about multi-stage docker build, here is a small description of what happens here:
-- there are two FROM instruction in the dockerfile, which is the signature of multi-stage build. The first paragraphe describe the building docker. It use the `#usessh` instruction that wa just explained above and the _cargo helper to ease Rust building from the the rustbuilder image,
-- in the second paragraph, the final image is created, with a unique `COPY` instruction which copy the binary produced before from the building docker (`--from=0`).
+Explanation:
+- The first stage performs the build. It uses the Rust builder image, enables SSH cloning, and compiles the project.
+- The second stage produces the final image, copying only the resulting binary via `COPY --from=0`.
 
 ## examples
 
-### conda derived environment
+### conda‑based environment
 
-`mkdocker` was invented to make this as simple as possible, so this one is a two liner:
+`mkdocker` was originally created to make this scenario trivial:
 
 ```docker
 FROM gmtscience/mamba
@@ -85,22 +95,23 @@ FROM gmtscience/mamba
 RUN _conda install fastp=0.23.4
 ```
 
-This is a fastp docker image - it may not be the most optimized fastp image (a multi-stage build would be slimer) but it's certainly the easiest code you'll find to create one. Three remarks:
-- `_conda install` is just like any conda install, you can have a long list of packages all in one line, specifying or not versions like with our `=0.23.4` option,
-- the more packages you'll need, the more this conda approach makes sense and makes unlikely the fact that you'll gain much with a multi-stage build.
+This produces a functional fastp image. While a multi‑stage build could produce a smaller image, the simplicity here is usually worth it:
+- `_conda install` behaves like normal Conda but supports multiple packages in a single line,
+- the more packages you install, the more advantageous this approach becomes.
 
-### simple download 
+### simple download
 
-Another fastp image, even lazier:
+A very lazy fastp image:
+
 ```docker
 FROM gmtscience/mamba
 
 RUN curl -L http://opengene.org/fastp/fastp.0.23.4 -o /usr/local/bin/fastp && chmod a+x /usr/local/bin/fastp
 ```
 
-### multi-stage approach
+### multi‑stage example from source
 
-The most complexe, from source approach, clearly not the one we recommand for fastp but maybe the only available options in some cases.
+The most complex approach, used only when no prebuilt binary or Conda package is available:
 
 ```docker
 FROM gmtscience/basebuilder
@@ -118,4 +129,3 @@ RUN cd /fastp && make static
 FROM gmtscience/mamba
 COPY --from=0 /fastp/fastp /usr/local/bin/
 ```
-
