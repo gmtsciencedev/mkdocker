@@ -1,3 +1,6 @@
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Release](https://img.shields.io/badge/release-v1.0-blue.svg)
+
 # mkdocker
 
 mkdocker is a lightweight system designed to make Docker image creation as simple and error‑free as possible. Its goal is to minimize the number of lines in a Dockerfile and reduce the likelihood of mistakes.
