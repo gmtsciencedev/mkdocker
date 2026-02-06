@@ -1,10 +1,10 @@
 FROM gmtscience/mamba:1.5.8
-RUN _conda install metaphlan=4.2.2
+RUN _conda install metaphlan=4.2.4
 RUN _pip install --force numpy
 RUN _pip install --force scipy
 RUN echo '#!/bin/bash\nset -e\nDB="$1"\n[ -e "$DB" ] && echo "Folder exists" >&2 && exit 1\nmkdir -p "$DB"\nmetaphlan --install --db_dir "$DB"\nV=$(<"$DB/mpa_latest")\nF="$DB/${V}.nwk"\n[ -f "$F" ] || wget -O "$F" "http://cmprod1.cibio.unitn.it/biobakery4/metaphlan_databases/${V}.nwk"' > /usr/local/bin/install_metaphlan_db && chmod +x /usr/local/bin/install_metaphlan_db
 
 # NB: run docker with 'install_metaphlan_db /path/to/db' (do not forget to mount the target path somewhere to have the db survives the initial docker) the first time
 
-#tag 4.2.2
+#tag 4.2.4
 #registry gmtscience
