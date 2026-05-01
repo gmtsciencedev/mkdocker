@@ -1,5 +1,7 @@
-FROM mamba:1.5.8
+FROM mamba:2.5.0
 
-RUN _conda install bowtie2=2.5.4 samtools=1.21
-#tag 2.5.4
+RUN _conda install bowtie2=2.5.5 samtools=1.23.1
+RUN _apt install unzip
+
+#tag 2.5.5
 #registry gmtscience
